@@ -44,7 +44,7 @@ It operates as a single binary with a single configuration file (`config.toml`),
 
 ## Stack
 
-- [Go](https://go.dev) - daemon, CLI
+- [Golang](https://go.dev)
 - [Docker](https://www.docker.com) - optional containerization
 
 ## Install

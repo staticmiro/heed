@@ -25,7 +25,11 @@ fi
 BINARY_URL="https://github.com/$REPO/releases/latest/download/heed-$OS-$ARCH"
 
 echo "Downloading heed for $OS/$ARCH..."
-curl -sSL -o /tmp/heed "$BINARY_URL"
+if ! curl -f -sSL -o /tmp/heed "$BINARY_URL"; then
+    echo "Error: Failed to download heed binary from $BINARY_URL"
+    echo "Please ensure that a GitHub release with assets exists at https://github.com/$REPO/releases"
+    exit 1
+fi
 chmod +x /tmp/heed
 
 echo "Installing to /usr/local/bin/heed..."

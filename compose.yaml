@@ -1,0 +1,15 @@
+services:
+  heed:
+    build: .
+    container_name: heed
+    restart: unless-stopped
+    volumes:
+      - ./config.toml:/etc/heed/config.toml:ro
+      - heed-data:/var/lib/heed
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host/root:ro
+
+volumes:
+  heed-data:

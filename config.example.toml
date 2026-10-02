@@ -1,0 +1,175 @@
+# Configuration for Heed monitoring daemon
+
+[server]
+# Server name to include in alert notifications
+name = "home-server"
+
+[monitor]
+# Frequency of running all checks
+interval = "10s"
+# Local file for persisting state changes and event logs
+data_file = "events.jsonl"
+# Maximum file size before rotation
+max_data_size = "50MB"
+# Delay before the first scan to allow services to start
+startup_grace = "30s"
+
+[alerts]
+# Global cooldown to prevent alert spam for the same check
+cooldown = "15m"
+# Whether to send a notification when a critical/warning state returns to normal
+notify_recovery = true
+
+# Hardware checks
+# These can be enabled directly without creating [[check]] entries
+
+[cpu]
+enabled = true
+warning = 80
+critical = 95
+
+[memory]
+enabled = true
+warning = 80
+critical = 95
+
+[swap]
+enabled = true
+warning = 50
+critical = 80
+
+[disk]
+enabled = true
+path = "/"
+warning = 80
+critical = 90
+
+[temperature]
+enabled = true
+warning = 75
+critical = 85
+
+# Notification channels
+# Multiple channels can be defined
+
+[[notify]]
+type = "stdout"
+
+#[[notify]]
+#type = "telegram"
+#token = "your-bot-token"
+#chat_id = "your-chat-id"
+
+#[[notify]]
+#type = "discord"
+#webhook_url = "https://discord.com/api/webhooks/..."
+
+#[[notify]]
+#type = "slack"
+#webhook_url = "https://hooks.slack.com/services/..."
+
+#[[notify]]
+#type = "webhook"
+#url = "https://your-endpoint.com/hook"
+#secret = "optional-hmac-secret"
+
+# Advanced Checks Examples
+# Uncomment and modify as needed
+
+# Basic HTTP check with dependencies
+#[[check]]
+#type = "http"
+#name = "website"
+#url = "https://example.com"
+#expected_status = 200
+#timeout = "10s"
+#warning = 2000
+#critical = 5000
+#depends_on = ["postgres"]
+
+# Advanced HTTP POST check with JSON body matching
+#[[check]]
+#type = "http"
+#name = "api-check"
+#url = "https://api.example.com/status"
+#method = "POST"
+#body = '{"ping": true}'
+#headers = {"Content-Type" = "application/json"}
+#expect_body = "pong"
+
+# TCP port connectivity check
+#[[check]]
+#type = "tcp"
+#name = "postgres"
+#host = "127.0.0.1"
+#port = 5432
+#timeout = "3s"
+
+# DNS resolution check
+#[[check]]
+#type = "dns"
+#name = "dns-check"
+#host = "example.com"
+
+# SSL certificate expiration check (days until expiration)
+#[[check]]
+#type = "ssl"
+#name = "ssl-cert"
+#host = "example.com"
+#warning = 30
+#critical = 7
+
+# Public IP monitoring (alerts on IP change)
+#[[check]]
+#type = "ip"
+#name = "public-ip"
+
+# Process monitoring: Minimum instances, max RAM, and max CPU limits
+#[[check]]
+#type = "process"
+#name = "heavy-worker"
+#match = "worker.py"
+#max_memory = "2GB"
+#max_cpu = 90
+
+# Systemd service state monitoring
+#[[check]]
+#type = "systemd"
+#name = "nginx-service"
+#match = "nginx"
+#state = "active"
+
+# Incremental log file monitoring for specific patterns
+#[[check]]
+#type = "log"
+#name = "syslog-err"
+#path = "/var/log/syslog"
+#pattern = "error"
+#ignore_case = true
+
+# Backup file freshness monitoring (max age of newest file)
+#[[check]]
+#type = "backup"
+#name = "db-backups"
+#path = "/var/backups/db"
+#max_age = "24h"
+
+# Hardware disk health via smartctl
+#[[check]]
+#type = "smart"
+#name = "disk-health"
+#device = "/dev/sda"
+
+# Pending OS updates monitoring
+#[[check]]
+#type = "updates"
+#name = "os-updates"
+#package_manager = "apt"
+#warning = 10
+
+# Fail2Ban banned IP count monitoring
+#[[check]]
+#type = "fail2ban"
+#name = "fail2ban-ssh"
+#jail = "sshd"
+#warning = 10

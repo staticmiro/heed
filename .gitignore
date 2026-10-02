@@ -1,0 +1,7 @@
+.env
+.env.*
+.DS_Store
+/heed
+events.jsonl
+config.toml
+.local/

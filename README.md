@@ -89,9 +89,9 @@ go build -o heed ./cmd/heed
 ./heed -config config.example.toml
 ```
 
-## CLI Usage
+## CLI Commands
 
-`heed` comes with a built-in CLI for quick insights without a web UI:
+`heed` provides the following commands for managing the daemon and checking its status:
 
 - `heed -config config.toml` — Run the daemon.
 - `heed status -config config.toml` — One-shot status check (prints all current metric states).

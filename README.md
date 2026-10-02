@@ -78,6 +78,7 @@ docker compose up -d
 - `heed history -n 20 -config config.toml` — View the last 20 state-change events.
 - `heed validate -config config.toml` — Verify your configuration syntax.
 - `heed test -config config.toml` — Send a test notification to all configured channels.
+- `heed reload` — Reload daemon configuration dynamically via SIGHUP (without downtime).
 - `heed silence -config config.toml [check_name] 30m` — Silence alerts (globally or for a specific check) for a given duration.
 
 ## Available Checks

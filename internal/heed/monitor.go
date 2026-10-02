@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -16,6 +17,7 @@ type CheckStatus struct {
 }
 
 type Monitor struct {
+	mu        sync.RWMutex
 	config    Config
 	checks    []Checker
 	notifiers []Notifier
@@ -59,6 +61,32 @@ func NewMonitor(cfg Config, logger *log.Logger) (*Monitor, error) {
 	}, nil
 }
 
+func (m *Monitor) ReloadConfig(path string) error {
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		return err
+	}
+	if errs := ValidateConfig(cfg); len(errs) > 0 {
+		return fmt.Errorf("config validation failed")
+	}
+
+	deps := make(map[string][]string)
+	for _, c := range cfg.Check {
+		if len(c.DependsOn) > 0 {
+			deps[c.Name] = c.DependsOn
+		}
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.config = cfg
+	m.checks = BuildChecks(cfg)
+	m.notifiers = BuildNotifiers(cfg)
+	m.deps = deps
+	m.logger.Printf("config reloaded successfully from %s", path)
+	return nil
+}
+
 func (m *Monitor) Run(ctx context.Context) {
 	if d := m.config.Monitor.StartupGraceDuration(); d > 0 {
 		m.logger.Printf("startup grace period for %s", d)
@@ -89,6 +117,8 @@ func (m *Monitor) Run(ctx context.Context) {
 
 func (m *Monitor) RunOnce() []Result {
 	setupHostEnv()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	var results []Result
 	for _, c := range m.checks {
 		results = append(results, c.Check())
@@ -115,17 +145,25 @@ func (m *Monitor) Close() error {
 }
 
 func (m *Monitor) runCycle() {
+	m.mu.RLock()
 	cooldown := m.config.Alerts.CooldownDuration()
+	checks := m.checks
+	notifiers := m.notifiers
+	deps := m.deps
+	serverName := m.config.Server.Name
+	notifyRecovery := m.config.Alerts.NotifyRecovery
+	interval := m.config.Monitor.IntervalDuration()
+	m.mu.RUnlock()
 
 	results := make(map[string]Result)
-	for _, c := range m.checks {
+	for _, c := range checks {
 		results[c.Name()] = c.Check()
 	}
 
 	failedParents := make(map[string][]string) // parentName -> []dependentNames
 	for name, result := range results {
 		if result.State != StateOK {
-			for _, parent := range m.deps[name] {
+			for _, parent := range deps[name] {
 				if pRes, ok := results[parent]; ok && pRes.State != StateOK {
 					failedParents[parent] = append(failedParents[parent], name)
 				}
@@ -133,7 +171,10 @@ func (m *Monitor) runCycle() {
 		}
 	}
 
-	for _, c := range m.checks {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, c := range checks {
 		result := results[c.Name()]
 		prev, exists := m.states[result.Name]
 		if !exists {
@@ -152,7 +193,7 @@ func (m *Monitor) runCycle() {
 				threshold := result.Threshold
 
 				if threshold > 0 && tb.IsIncreasing() {
-					eta := tb.EstimateTimeToThreshold(threshold, m.config.Monitor.IntervalDuration())
+					eta := tb.EstimateTimeToThreshold(threshold, interval)
 					if eta > 0 && eta < 1*time.Hour {
 						m.logger.Printf("TREND ALERT: %s is increasing, ETA to critical: %s", result.Name, eta)
 						event := Event{
@@ -168,8 +209,8 @@ func (m *Monitor) runCycle() {
 						cooldownKey := event.Check + ":" + string(event.State)
 						if last, ok := m.cooldowns[cooldownKey]; !ok || time.Since(last) >= cooldown {
 							m.cooldowns[cooldownKey] = time.Now()
-							for _, n := range m.notifiers {
-								n.Send(event, m.config.Server.Name)
+							for _, n := range notifiers {
+								n.Send(event, serverName)
 							}
 						}
 					}
@@ -194,13 +235,13 @@ func (m *Monitor) runCycle() {
 			m.logger.Printf("event log error: %v", err)
 		}
 
-		if result.State == StateOK && !m.config.Alerts.NotifyRecovery {
+		if result.State == StateOK && !notifyRecovery {
 			continue
 		}
 
 		suppressedByParent := false
 		if result.State != StateOK {
-			for _, parent := range m.deps[result.Name] {
+			for _, parent := range deps[result.Name] {
 				if pRes, ok := results[parent]; ok && pRes.State != StateOK {
 					m.logger.Printf("suppressing alert for %s because parent %s is failing", result.Name, parent)
 					suppressedByParent = true
@@ -232,8 +273,8 @@ func (m *Monitor) runCycle() {
 
 		m.cooldowns[cooldownKey] = time.Now()
 
-		for _, n := range m.notifiers {
-			if err := n.Send(event, m.config.Server.Name); err != nil {
+		for _, n := range notifiers {
+			if err := n.Send(event, serverName); err != nil {
 				m.logger.Printf("notify %s error: %v", n.Name(), err)
 			}
 		}

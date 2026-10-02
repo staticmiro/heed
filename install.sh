@@ -35,5 +35,13 @@ chmod +x /tmp/heed
 echo "Installing to /usr/local/bin/heed..."
 sudo mv /tmp/heed /usr/local/bin/heed
 
+if [ "$OS" = "linux" ] && [ -d "/etc/systemd/system" ]; then
+    echo "Installing systemd service..."
+    curl -sSL -o /tmp/heed.service "https://raw.githubusercontent.com/$REPO/main/heed.service"
+    sudo mv /tmp/heed.service /etc/systemd/system/heed.service
+    sudo systemctl daemon-reload
+    echo "Systemd service installed. Enable and start with: sudo systemctl enable --now heed"
+fi
+
 echo "Successfully installed heed!"
 echo "Run 'heed -help' to get started."

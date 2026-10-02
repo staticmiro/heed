@@ -13,12 +13,21 @@ import (
 	"time"
 
 	"heed/internal/heed"
+
+	"github.com/shirou/gopsutil/v3/process"
 )
 
 var version = "dev"
 
+func getDefaultConfigPath() string {
+	if _, err := os.Stat("/etc/heed/config.toml"); err == nil {
+		return "/etc/heed/config.toml"
+	}
+	return "config.toml"
+}
+
 func main() {
-	configPath := "config.toml"
+	configPath := getDefaultConfigPath()
 	historyLimit := 20
 	var cmd string
 
@@ -60,6 +69,8 @@ func main() {
 		runHistory(configPath, historyLimit)
 	case "test":
 		runTest(configPath)
+	case "reload":
+		runReload(configPath)
 	case "silence":
 		runSilence(configPath)
 	case "help":
@@ -95,11 +106,20 @@ func runDaemon(configPath string) {
 	defer cancel()
 
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	go func() {
-		<-sigCh
-		logger.Println("shutting down")
-		cancel()
+		for sig := range sigCh {
+			if sig == syscall.SIGHUP {
+				logger.Println("received SIGHUP, reloading config...")
+				if err := monitor.ReloadConfig(configPath); err != nil {
+					logger.Printf("reload failed: %v", err)
+				}
+			} else {
+				logger.Println("shutting down")
+				cancel()
+				return
+			}
+		}
 	}()
 
 	monitor.Run(ctx)
@@ -231,10 +251,43 @@ func runHelp() {
 	fmt.Println("  status   Print current status of all checks")
 	fmt.Println("  history  Print event history")
 	fmt.Println("  test     Send a test notification")
+	fmt.Println("  reload   Reload daemon configuration (sends SIGHUP)")
 	fmt.Println("  validate Validate configuration")
 	fmt.Println("  silence  Silence alerts")
 	fmt.Println("  version  Print version")
 	fmt.Println("  help     Print this help message")
+}
+
+func runReload(configPath string) {
+	procs, err := process.Processes()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to list processes: %v\n", err)
+		os.Exit(1)
+	}
+
+	myPID := int32(os.Getpid())
+	reloaded := 0
+
+	for _, p := range procs {
+		if p.Pid == myPID {
+			continue
+		}
+		name, err := p.Name()
+		if err != nil {
+			continue
+		}
+		if name == "heed" {
+			if err := p.SendSignal(syscall.SIGHUP); err == nil {
+				fmt.Printf("Sent reload signal to heed daemon (PID %d)\n", p.Pid)
+				reloaded++
+			}
+		}
+	}
+
+	if reloaded == 0 {
+		fmt.Println("No running heed daemon found.")
+		os.Exit(1)
+	}
 }
 
 func runSilence(configPath string) {

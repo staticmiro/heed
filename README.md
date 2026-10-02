@@ -47,26 +47,46 @@ It operates as a single binary with a single configuration file (`config.toml`),
 - [Golang](https://go.dev)
 - [Docker](https://www.docker.com) - optional containerization
 
-## Install
+## Installation & Running
 
-Download the latest pre-compiled binary via the install script:
+Choose your preferred deployment method. `heed` runs identically in both scenarios, but native installation is recommended for accessing host-level metrics like `systemd` and `fail2ban`.
+
+### Option A: Native Systemd (Recommended)
+
+Download and install the pre-compiled binary directly to your system. This script automatically configures a systemd service.
 
 ```bash
+# 1. Install heed (downloads binary to /usr/local/bin and sets up heed.service)
 curl -sSL https://raw.githubusercontent.com/staticmiro/heed/main/install.sh | bash
+
+# 2. Setup your configuration
+sudo mkdir -p /etc/heed
+sudo curl -sSL -o /etc/heed/config.toml https://raw.githubusercontent.com/staticmiro/heed/main/config.example.toml
+# Edit /etc/heed/config.toml with your tokens and chat IDs
+
+# 3. Enable and start the daemon
+sudo systemctl enable --now heed
 ```
 
-## Run
+### Option B: Docker
+
+If you prefer containerization:
 
 ```bash
+git clone https://github.com/staticmiro/heed.git
+cd heed
 cp config.example.toml config.toml
-go build -o heed ./cmd/heed
-./heed -config config.toml
+# Edit config.toml
+docker compose up -d
 ```
 
-Or with Docker:
+### Option C: Build from Source
 
 ```bash
-docker compose up -d
+git clone https://github.com/staticmiro/heed.git
+cd heed
+go build -o heed ./cmd/heed
+./heed -config config.example.toml
 ```
 
 ## CLI Usage

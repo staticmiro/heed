@@ -93,13 +93,13 @@ go build -o heed ./cmd/heed
 
 `heed` provides the following commands for managing the daemon and checking its status:
 
-- `heed -config config.toml` — Run the daemon.
-- `heed status -config config.toml` — One-shot status check (prints all current metric states).
-- `heed history -n 20 -config config.toml` — View the last 20 state-change events.
-- `heed validate -config config.toml` — Verify your configuration syntax.
-- `heed test -config config.toml` — Send a test notification to all configured channels.
-- `heed reload` — Reload daemon configuration dynamically via SIGHUP (without downtime).
-- `heed silence -config config.toml [check_name] 30m` — Silence alerts (globally or for a specific check) for a given duration.
+- `heed -config config.toml` - Run the daemon.
+- `heed status -config config.toml` - One-shot status check (prints all current metric states).
+- `heed history -n 20 -config config.toml` - View the last 20 state-change events.
+- `heed validate -config config.toml` - Verify your configuration syntax.
+- `heed test -config config.toml` - Send a test notification to all configured channels.
+- `heed reload` - Reload daemon configuration dynamically via SIGHUP (without downtime).
+- `heed silence -config config.toml [check_name] 30m` - Silence alerts (globally or for a specific check) for a given duration.
 
 ## Available Checks
 
